@@ -1,4 +1,4 @@
-"""Deterministic hash computation for payload change detection."""
+"""Детерминированное вычисление хеша для обнаружения изменений payload."""
 import json
 import hashlib
 from typing import Dict, Any
@@ -6,21 +6,21 @@ from typing import Dict, Any
 
 def payload_hash(payload: Dict[str, Any]) -> str:
     """
-    Compute a deterministic MD5 hash of a payload dictionary.
+    Вычисляет детерминированный MD5 хеш словаря payload.
     
-    Uses sorted keys and compact JSON serialization to ensure the same
-    payload always produces the same hash, regardless of key order.
+    Использует сортировку ключей и компактную сериализацию JSON, чтобы гарантировать,
+    что один и тот же payload всегда дает одинаковый хеш, независимо от порядка ключей.
     
     Args:
-        payload: Dictionary to hash
+        payload: Словарь для хеширования
         
     Returns:
-        32-character hexadecimal MD5 hash string
+        32-символьная шестнадцатеричная строка MD5 хеша
         
     Example:
         >>> payload_hash({"b": 2, "a": 1})
         'c899a67bbee5b1e5d0e580bc01468c44'
-        >>> payload_hash({"a": 1, "b": 2})  # Same hash despite different order
+        >>> payload_hash({"a": 1, "b": 2})  # Тот же хеш, несмотря на разный порядок
         'c899a67bbee5b1e5d0e580bc01468c44'
     """
     # Serialize with sorted keys for determinism

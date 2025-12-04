@@ -4,11 +4,11 @@ from ..utils.db import executemany, executemany_one_off
 
 
 async def load_raw(table: str, rows: List[Dict[str, Any]], batch_size: int = 1000) -> None:
-    """Load rows into raw.data.
+    """Загружает строки в raw.data.
 
-    asyncpg requires JSON/JSONB values to be passed as text for prepared
-    statements, so we serialize the payload to a JSON string and cast it
-    to jsonb in the SQL if needed on the server side.
+    asyncpg требует, чтобы значения JSON/JSONB передавались как текст для подготовленных
+    выражений, поэтому мы сериализуем payload в JSON-строку и приводим к jsonb в SQL,
+    если это необходимо на стороне сервера.
     """
     if not rows:
         return

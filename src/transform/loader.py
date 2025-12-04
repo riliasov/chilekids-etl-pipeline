@@ -1,4 +1,4 @@
-"""Loader for upserting normalized records to staging.records."""
+"""Загрузчик для обновления (upsert) нормализованных записей в staging.records."""
 import logging
 import json
 from typing import List, Dict, Any
@@ -11,22 +11,22 @@ logger = logging.getLogger(__name__)
 
 async def upsert_staging_records(records: List[Dict[str, Any]]) -> int:
     """
-    Upsert records to staging.records table.
+    Обновляет (upsert) записи в таблице staging.records.
     
-    Uses ON CONFLICT (raw_id) DO UPDATE to handle incremental updates.
-    All fields are updated on conflict to ensure staging reflects latest raw data.
+    Использует ON CONFLICT (raw_id) DO UPDATE для инкрементальных обновлений.
+    Все поля обновляются при конфликте, чтобы staging отражал последние сырые данные.
     
     Args:
-        records: List of normalized record dictionaries
+        records: Список словарей нормализованных записей
         
     Returns:
-        Number of records successfully upserted
+        Количество успешно обновленных записей
         
     Raises:
-        Exception if database operation fails
+        Exception если операция с БД не удалась
     """
     if not records:
-        logger.info("No records to upsert")
+        logger.info("⚠️ Нет записей для обновления (upsert)")
         return 0
     
     # Field names matching staging.records schema
@@ -59,7 +59,7 @@ async def upsert_staging_records(records: List[Dict[str, Any]]) -> int:
     
     pool = get_db_pool()
     if pool is None:
-        raise RuntimeError("Database pool not initialized")
+        raise RuntimeError("❌ Пул базы данных не инициализирован")
     
     successful = 0
     failed = 0
@@ -78,7 +78,7 @@ async def upsert_staging_records(records: List[Dict[str, Any]]) -> int:
                 values = tuple(record_copy.get(f) for f in fields)
                 prepared_records.append(values)
             except Exception as e:
-                logger.error(f"Failed to prepare record for upsert: {e}")
+                logger.error(f"❌ Не удалось подготовить запись для обновления: {e}")
                 failed += 1
 
         if not prepared_records:
@@ -90,7 +90,7 @@ async def upsert_staging_records(records: List[Dict[str, Any]]) -> int:
                 await conn.executemany(sql, prepared_records)
                 successful = len(prepared_records)
         except Exception as e:
-            logger.warning(f"Batch upsert failed, falling back to individual upserts: {e}")
+            logger.warning(f"⚠️ Пакетное обновление не удалось, переходим к поштучному: {e}")
             # Fallback to slow individual upserts to isolate errors
             async with conn.transaction():
                 for i, values in enumerate(prepared_records):
@@ -102,12 +102,12 @@ async def upsert_staging_records(records: List[Dict[str, Any]]) -> int:
                         # Try to identify which record failed
                         raw_id = records[i].get('raw_id', 'unknown')
                         logger.error(
-                            f"Failed to upsert record raw_id={raw_id}: {inner_e}"
+                            f"❌ Не удалось обновить запись raw_id={raw_id}: {inner_e}"
                         )
     
     logger.info(
-        f"Upserted {successful} records to staging.records "
-        f"({failed} failed)"
+        f"✅ Обновлено {successful} записей в staging.records "
+        f"(ошибок: {failed})"
     )
     
     return successful
@@ -118,14 +118,14 @@ async def upsert_staging_records_batch(
     batch_size: int = 100
 ) -> int:
     """
-    Upsert records in batches for better performance.
+    Обновляет записи пакетами для лучшей производительности.
     
     Args:
-        records: List of normalized record dictionaries
-        batch_size: Number of records to process per batch
+        records: Список словарей нормализованных записей
+        batch_size: Количество записей в одном пакете
         
     Returns:
-        Total number of records successfully upserted
+        Общее количество успешно обновленных записей
     """
     if not records:
         return 0
@@ -134,15 +134,15 @@ async def upsert_staging_records_batch(
     
     for i in range(0, len(records), batch_size):
         batch = records[i:i + batch_size]
-        logger.debug(f"Processing batch {i//batch_size + 1} ({len(batch)} records)")
+        logger.debug(f"🔄 Обработка пакета {i//batch_size + 1} ({len(batch)} записей)")
         
         try:
             count = await upsert_staging_records (batch)
             total_upserted += count
         except Exception as e:
-            logger.error(f"Batch upsert failed: {e}", exc_info=True)
+            logger.error(f"❌ Ошибка пакетного обновления: {e}", exc_info=True)
             # Continue with next batch
             continue
     
-    logger.info(f"Total upserted: {total_upserted} out of {len(records)} records")
+    logger.info(f"🏁 Всего обновлено: {total_upserted} из {len(records)} записей")
     return total_upserted

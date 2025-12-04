@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 async def push_df_to_sheet(spreadsheet_id: str, sheet_name: str, df: pd.DataFrame) -> dict:
     token = get_google_access_token()
     if not token:
-        raise RuntimeError('Google access token missing')
+        raise RuntimeError('❌ Отсутствует токен доступа Google')
     url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{sheet_name}!A1:append?valueInputOption=RAW"
     values = [list(df.columns)] + df.fillna('').astype(str).values.tolist()
     body = {"values": values}

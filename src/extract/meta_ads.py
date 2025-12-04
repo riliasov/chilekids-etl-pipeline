@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 async def fetch_meta_ads(account_id: str) -> List[Dict[str, Any]]:
     token = settings.META_TOKEN
     if not token:
-        logger.warning('META_TOKEN not configured')
+        logger.warning('⚠️ META_TOKEN не настроен')
         return []
     url = f"https://graph.facebook.com/v16.0/{account_id}/campaigns"
     params = {"access_token": token}
@@ -21,7 +21,7 @@ async def fetch_meta_ads(account_id: str) -> List[Dict[str, Any]]:
             async with session.get(url, params=params) as resp:
                 j = await resp.json()
         except Exception as exc:
-            logger.warning('Meta Ads fetch failed: %s', exc)
+            logger.warning('⚠️ Ошибка получения данных Meta Ads: %s', exc)
             return []
 
     items = j.get('data', [])
@@ -36,6 +36,6 @@ async def fetch_meta_ads(account_id: str) -> List[Dict[str, Any]]:
         with open(csv_path, 'rb') as fh:
             await upload_to_supabase_storage('archives', f"{date_str}/meta_ads_{account_id}.csv", fh.read(), 'text/csv')
     except Exception as exc:
-        logger.warning('Supabase upload failed: %s', exc)
+        logger.warning('⚠️ Загрузка в Supabase не удалась: %s', exc)
 
     return items

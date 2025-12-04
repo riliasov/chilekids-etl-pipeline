@@ -22,15 +22,15 @@ async def fetch_google_sheets(spreadsheet_id: str, range_name: str = 'Sheet1!A:A
     elif settings.SHEETS_API_KEY:
         params = {"key": settings.SHEETS_API_KEY}
     else:
-        logger.error("Google service account token not available and no SHEETS_API_KEY configured")
+        logger.error("❌ Токен сервисного аккаунта Google недоступен и SHEETS_API_KEY не настроен")
         return []
 
     async with aiohttp.ClientSession() as session:
-        logger.info(f"Fetching URL: {url}")
+        logger.info(f"📥 Загрузка URL: {url}")
         async with session.get(url, headers=headers, params=params) as resp:
-            logger.info(f"Response status: {resp.status}")
+            logger.info(f"Статус ответа: {resp.status}")
             data = await resp.json()
-            logger.info("Data received")
+            logger.info("✅ Данные получены")
     values = data.get('values', [])
     if not values:
         return []
@@ -63,6 +63,6 @@ async def fetch_google_sheets(spreadsheet_id: str, range_name: str = 'Sheet1!A:A
         with open(csv_path, 'rb') as fh:
             await upload_to_supabase_storage('archives', f"{date_str}/google_sheets_{spreadsheet_id}.csv", fh.read(), 'text/csv')
     except Exception as exc:
-        logger.warning("Upload to Supabase failed: %s", exc)
+        logger.warning("⚠️ Загрузка в Supabase не удалась: %s", exc)
 
     return records

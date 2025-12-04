@@ -35,9 +35,9 @@ async def build_campaigns_summary():
                     cid, vals['impressions'], vals['clicks'], vals['cost']
                 )
             except Exception as exc:
-                logger.warning('Failed to upsert mart row: %s', exc)
+                logger.warning('⚠️ Не удалось обновить строку витрины: %s', exc)
     except Exception as exc:
-        logger.warning('Failed to build campaign summary: %s', exc)
+        logger.warning('⚠️ Не удалось построить сводку по кампаниям: %s', exc)
 
 
 async def build_financials():
@@ -86,7 +86,7 @@ async def build_financials():
                 r['year_month'], r['type'], total_rounded
             )
         except Exception as exc:
-            logger.warning('Failed to upsert financial mart row: %s', exc)
+            logger.warning('⚠️ Не удалось обновить строку финансовой витрины: %s', exc)
 
 
 async def build_expenses_by_category():
@@ -129,7 +129,7 @@ async def build_expenses_by_category():
                 r['category'], total_rounded
             )
         except Exception as exc:
-            logger.warning('Failed to upsert expenses_by_category row: %s', exc)
+            logger.warning('⚠️ Не удалось обновить строку expenses_by_category: %s', exc)
 
 
 async def build_all():

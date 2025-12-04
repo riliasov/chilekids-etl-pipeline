@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 async def fetch_youtube_analytics(channel_id: str, start_date: str, end_date: str) -> List[Dict[str, Any]]:
     key = settings.YOUTUBE_KEY
     if not key:
-        logger.warning('YOUTUBE_KEY not configured')
+        logger.warning('⚠️ YOUTUBE_KEY не настроен')
         return []
     url = "https://www.googleapis.com/youtube/v3/search"
     params = {"part": "snippet", "channelId": channel_id, "maxResults": 50, "key": key}
@@ -21,7 +21,7 @@ async def fetch_youtube_analytics(channel_id: str, start_date: str, end_date: st
             async with session.get(url, params=params) as resp:
                 j = await resp.json()
         except Exception as exc:
-            logger.warning('YouTube fetch failed: %s', exc)
+            logger.warning('⚠️ Ошибка получения данных YouTube: %s', exc)
             return []
 
     items = j.get('items', [])
@@ -35,6 +35,6 @@ async def fetch_youtube_analytics(channel_id: str, start_date: str, end_date: st
         with open(csv_path, 'rb') as fh:
             await upload_to_supabase_storage('archives', f"{date_str}/youtube_{channel_id}.csv", fh.read(), 'text/csv')
     except Exception as exc:
-        logger.warning('Supabase upload failed: %s', exc)
+        logger.warning('⚠️ Загрузка в Supabase не удалась: %s', exc)
 
     return items

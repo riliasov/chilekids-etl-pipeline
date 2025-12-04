@@ -1,4 +1,4 @@
-"""Transformation utilities for normalizing payload to staging.records."""
+"""Утилиты трансформации для нормализации payload в staging.records."""
 import json
 import logging
 from typing import Any, Dict, Optional, List
@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 
 def _to_timestamptz(val: Any) -> Optional[datetime]:
     """
-    Parse value to timezone-aware datetime in UTC.
+    Парсит значение в datetime с часовым поясом UTC.
     
-    Supports ISO 8601 and common date formats.
-    Returns None if parsing fails.
+    Поддерживает ISO 8601 и распространенные форматы дат.
+    Возвращает None, если парсинг не удался.
     """
     if val is None or val == '':
         return None
@@ -43,19 +43,19 @@ def _to_timestamptz(val: Any) -> Optional[datetime]:
         except (ValueError, TypeError):
             continue
     
-    logger.debug(f"Could not parse date: {val}")
+    logger.debug(f"Не удалось распарсить дату: {val}")
     return None
 
 
 def _to_decimal(val: Any) -> Optional[Decimal]:
     """
-    Parse value to Decimal.
+    Парсит значение в Decimal.
     
-    Handles:
-    - Currency symbols ($, €, ₽)
-    - Thousand separators (spaces, commas)
-    - Decimal separators (comma, dot)
-    - Negative numbers in parentheses: (100) -> -100
+    Обрабатывает:
+    - Символы валют ($, €, ₽)
+    - Разделители тысяч (пробелы, запятые)
+    - Разделители дробей (запятая, точка)
+    - Отрицательные числа в скобках: (100) -> -100
     """
     if val is None or val == '':
         return None
@@ -106,12 +106,12 @@ def _to_decimal(val: Any) -> Optional[Decimal]:
         result = Decimal(s)
         return -result if neg else result
     except (InvalidOperation, ValueError):
-        logger.debug(f"Could not parse decimal: {val}")
+        logger.debug(f"Не удалось распарсить decimal: {val}")
         return None
 
 
 def _to_int(val: Any) -> Optional[int]:
-    """Parse value to integer. Returns None if parsing fails."""
+    """Парсит значение в integer. Возвращает None при ошибке."""
     if val is None or val == '':
         return None
     if isinstance(val, int):
@@ -130,22 +130,22 @@ def _to_int(val: Any) -> Optional[int]:
     try:
         return int(str(val).strip())
     except (ValueError, TypeError):
-        logger.debug(f"Could not parse int: {val}")
+        logger.debug(f"Не удалось распарсить int: {val}")
         return None
 
 
 def _get(payload: Dict[str, Any], key_variants: List[str]) -> Any:
     """
-    Get value from payload by checking multiple key variants.
+    Получает значение из payload, проверяя несколько вариантов ключа.
     
-    Checks exact match first, then lowercase without spaces as fallback.
+    Сначала проверяет точное совпадение, затем lowercase без пробелов.
     
     Args:
-        payload: Dictionary to search
-        key_variants: List of possible key names to try
+        payload: Словарь для поиска
+        key_variants: Список возможных имен ключей
         
     Returns:
-        Value if found, None otherwise
+        Значение, если найдено, иначе None
     """
     # Try exact matches first
     for key in key_variants:
@@ -173,16 +173,16 @@ def normalize_record(
     payload: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Normalize a raw payload into staging.records format.
+    Нормализует сырой payload в формат staging.records.
     
     Args:
-        raw_id: ID from raw.source_events
-        sheet_row_number: Row number in the source sheet
-        received_at: Timestamp when data was received
-        payload: Raw JSONB payload from source
+        raw_id: ID из raw.source_events
+        sheet_row_number: Номер строки в исходном листе
+        received_at: Временная метка получения данных
+        payload: Сырой JSONB payload из источника
         
     Returns:
-        Dictionary with keys matching staging.records columns
+        Словарь с ключами, соответствующими колонкам staging.records
     """
     # Compute hash for change detection
     hash_value = payload_hash(payload)

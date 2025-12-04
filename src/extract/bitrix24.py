@@ -13,7 +13,7 @@ async def fetch_bitrix24(method: str = 'crm.contact.list', params: dict | None =
     params = params or {}
     base = settings.BITRIX_WEBHOOK
     if not base:
-        logger.error('BITRIX_WEBHOOK not configured')
+        logger.error('❌ BITRIX_WEBHOOK не настроен')
         return []
     url = f"{base}/{method}"
     results: List[Dict[str, Any]] = []
@@ -24,7 +24,7 @@ async def fetch_bitrix24(method: str = 'crm.contact.list', params: dict | None =
                 async with session.get(url, params={**params, 'page': page}) as resp:
                     j = await resp.json()
             except Exception as exc:
-                logger.warning('Bitrix request failed: %s', exc)
+                logger.warning('⚠️ Запрос к Bitrix не удался: %s', exc)
                 break
             items = j.get('result') or j.get('items') or []
             if not items:
@@ -44,6 +44,6 @@ async def fetch_bitrix24(method: str = 'crm.contact.list', params: dict | None =
         with open(csv_path, 'rb') as fh:
             await upload_to_supabase_storage('archives', f"{date_str}/bitrix24_{date_str}.csv", fh.read(), 'text/csv')
     except Exception as exc:
-        logger.warning('Supabase upload failed: %s', exc)
+        logger.warning('⚠️ Загрузка в Supabase не удалась: %s', exc)
 
     return results

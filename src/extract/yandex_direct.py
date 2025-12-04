@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 async def fetch_yandex_direct(client_login: str) -> List[Dict[str, Any]]:
     token = settings.YANDEX_DIRECT_TOKEN
     if not token:
-        logger.warning('YANDEX_DIRECT_TOKEN not configured')
+        logger.warning('⚠️ YANDEX_DIRECT_TOKEN не настроен')
         return []
     url = f"https://api.direct.yandex.com/json/v5/campaigns"
     headers = {"Authorization": f"Bearer {token}", "Accept-Language": "ru"}
@@ -21,7 +21,7 @@ async def fetch_yandex_direct(client_login: str) -> List[Dict[str, Any]]:
             async with session.post(url, headers=headers, json={"method": "get", "params": {}}) as resp:
                 j = await resp.json()
         except Exception as exc:
-            logger.warning('Yandex Direct fetch failed: %s', exc)
+            logger.warning('⚠️ Ошибка получения данных Yandex Direct: %s', exc)
             return []
 
     items = j.get('result') or []
@@ -36,6 +36,6 @@ async def fetch_yandex_direct(client_login: str) -> List[Dict[str, Any]]:
         with open(csv_path, 'rb') as fh:
             await upload_to_supabase_storage('archives', f"{date_str}/yandex_direct_{client_login}.csv", fh.read(), 'text/csv')
     except Exception as exc:
-        logger.warning('Supabase upload failed: %s', exc)
+        logger.warning('⚠️ Загрузка в Supabase не удалась: %s', exc)
 
     return items

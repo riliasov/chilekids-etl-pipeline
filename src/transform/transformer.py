@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def _parse_number(val: Any) -> Any:
-    """Parse numeric-like strings to float/int. Return original if cannot parse."""
+    """Парсит числовые строки в float/int. Возвращает оригинал, если парсинг не удался."""
     if val is None:
         return None
     if isinstance(val, (int, float)):
@@ -105,7 +105,7 @@ def _parse_date(val: Any) -> Any:
 
 
 def _normalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Return a new payload dict with parsed dates/numbers/currencies where possible."""
+    """Возвращает новый словарь payload с распаршенными датами/числами/валютами, где это возможно."""
     out = {}
     # We want to preserve the order if possible, but dicts are ordered in modern Python.
     # We will iterate through all keys.
@@ -142,10 +142,10 @@ def _normalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def normalize_to_staging(source: str, records: List[Dict[str, Any]]):
-    """Normalize raw records into staging.data.
+    """Нормализует сырые записи в staging.data.
 
-    records can be a list of dicts (payloads) or rows fetched from raw.data
-    where each row has an 'id' and 'payload' field.
+    records может быть списком словарей (payloads) или строк, извлеченных из raw.data,
+    где каждая строка имеет поля 'id' и 'payload'.
     """
     if not records:
         return pd.DataFrame()
@@ -221,18 +221,18 @@ async def normalize_to_staging(source: str, records: List[Dict[str, Any]]):
 
                 yield (row['id'], row['source'], row['created_at'], payload, payment_ts, type_text, total_rub_num)
             except Exception as exc:
-                logger.warning('Failed to prepare staging row: %s', exc)
+                logger.warning('⚠️ Не удалось подготовить строку staging: %s', exc)
 
     # perform bulk insert using one-off executemany to avoid holding pool connections
     try:
         await executemany_one_off(sql, args_iter())
     except Exception as exc:
-        logger.warning('Failed to executemany staging rows: %s', exc)
+        logger.warning('⚠️ Не удалось выполнить executemany для строк staging: %s', exc)
     return rows
 
 
 async def transform_from_raw(source: str, limit: int = 1000):
-    """Fetch rows from raw.data for a given source and normalize them into staging."""
+    """Извлекает строки из raw.data для заданного источника и нормализует их в staging."""
     sql = "SELECT id, payload FROM raw.data WHERE source = $1 ORDER BY extracted_at DESC LIMIT $2"
     # use one-off fetch to avoid creating a persistent pool for this short-lived script
     rows = await fetch_one_off(sql, source, limit)

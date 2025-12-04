@@ -7,10 +7,10 @@ _pool: asyncpg.Pool | None = None
 
 
 async def init_db_pool(min_size: int | None = None, max_size: int | None = None) -> asyncpg.Pool:
-    """Initialize a global asyncpg pool if not already present.
+    """Инициализирует глобальный пул соединений asyncpg, если он еще не создан.
 
-    Defaults to values from settings.DB_POOL_MIN / DB_POOL_MAX to avoid
-    exhausting connections on hosted Postgres (Supabase) plans.
+    Использует значения по умолчанию из settings.DB_POOL_MIN / DB_POOL_MAX, чтобы избежать
+    исчерпания соединений на хостинговых планах Postgres (Supabase).
     """
     global _pool
     if _pool is None:
@@ -42,7 +42,7 @@ async def close_db_pool() -> None:
 
 
 def get_db_pool() -> asyncpg.Pool | None:
-    """Get the current database pool (must be initialized first)."""
+    """Возвращает текущий пул базы данных (должен быть сначала инициализирован)."""
     return _pool
 
 
@@ -63,9 +63,9 @@ async def executemany(sql: str, args_iter: Iterable[Iterable[Any]]) -> None:
 
 
 async def executemany_one_off(sql: str, args_iter: Iterable[Iterable[Any]]) -> None:
-    """Run executemany using a one-off connection (no persistent pool).
+    """Запускает executemany, используя одноразовое соединение (без постоянного пула).
 
-    Useful for bulk-loading scripts that should not keep a pool open.
+    Полезно для скриптов массовой загрузки, которые не должны держать пул открытым.
     """
     conn = await asyncpg.connect(dsn=str(settings.POSTGRES_URI))
     try:
@@ -80,10 +80,10 @@ async def fetch(sql: str, *args: Any):
 
 
 async def fetch_one_off(sql: str, *args: Any):
-    """Run a single-query connection (no pool) and close it immediately.
+    """Запускает запрос с одноразовым соединением (без пула) и сразу закрывает его.
 
-    Useful for short-lived CLI scripts or maintenance tasks to avoid
-    keeping many persistent connections open.
+    Полезно для короткоживущих CLI скриптов или задач обслуживания, чтобы избежать
+    удержания множества постоянных соединений.
     """
     conn = await asyncpg.connect(dsn=str(settings.POSTGRES_URI))
     try:

@@ -1,5 +1,5 @@
 """
-Configuration settings using Pydantic v2.
+Настройки конфигурации с использованием Pydantic v2.
 """
 from typing import Optional
 from pydantic import Field, HttpUrl
@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+    """Настройки приложения, загружаемые из переменных окружения."""
     
     POSTGRES_URI: str = Field(..., validation_alias="POSTGRES_URI")
     SUPABASE_URL: Optional[str] = None
