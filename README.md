@@ -1,69 +1,57 @@
 # ChileKids ETL Pipeline — Google Sheets to Supabase
 
-Production-ready async ELT pipeline for extracting data from Google Sheets, loading to Supabase PostgreSQL, and creating normalized staging tables and data marts.
+Async ETL pipeline для извлечения данных из Google Sheets и загрузки в Supabase PostgreSQL с нормализацией и созданием data marts.
 
-## Architecture
+## Архитектура
 
-- **Extract**: Async extractors for Google Sheets, Bitrix24, Google Ads, Yandex Direct, Meta Ads, and YouTube
-- **Load**: Raw data archival to local disk and Supabase Storage, then bulk load to `raw.data` schema
-- **Transform**: Python-based normalization to `staging.data` with robust type inference
-- **Marts**: Aggregated data marts in `marts` schema (e.g., expenses by category)
+- **Extract** (`src/extract/`): Асинхронное извлечение из Google Sheets
+- **Transform** (`src/transform/`): Нормализация данных с обработкой дат, чисел, валют
+- **Load** (`src/load/`): Массовая загрузка в `staging.records` с использованием `executemany`
+- **Marts** (`src/marts/`): Агрегированные витрины данных
 
-## Quick Start
+## Быстрый старт
 
-### Prerequisites
+### 1. Настройка окружения
 
-1. Create `.env` file with required credentials:
-   ```bash
-   POSTGRES_URI=postgresql://user:pass@host:5432/db
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_SERVICE_KEY=your_service_key
-   SHEETS_SA_JSON=./secrets/your-service-account.json
-   SHEETS_SPREADSHEET_ID=your_spreadsheet_id
-   SHEETS_RANGE=A4:AF
-   ```
-
-2. Install dependencies:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-### Run Pipeline
-
+Создайте файл `.env`:
 ```bash
-# Full ELT pipeline with environment configuration
-PYTHONPATH=. python scripts/run_elt.py
-
-# Or with explicit arguments
-PYTHONPATH=. python scripts/run_elt.py <spreadsheet_id> <range>
+POSTGRES_URI=postgresql://user:pass@host:5432/db
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your_service_key
+SHEETS_SA_JSON=./secrets/service-account.json
 ```
 
-### Available Scripts
-
-- `scripts/run_elt.py` - Main orchestration script (Extract → Load → Transform)
-- `scripts/load_sheet_to_raw.py` - Extract and load to raw layer
-- `scripts/transform_raw_to_staging.py` - Transform raw to staging
-- `scripts/verify_data.py` - Verify data in database
-- `scripts/check_env.py` - Check environment configuration
-- `scripts/export_staging_to_csv.py` - Export staging data to CSV
-
-### Testing
+### 2. Установка
 
 ```bash
-# Run all tests
-PYTHONPATH=. pytest tests/
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-# Run specific test suite
-PYTHONPATH=. pytest tests/test_elt_flow.py
+### 3. Запуск
+
+```bash
+python main.py              # Полный ETL
+python main.py --test       # Тестовый режим (лимит 100 записей)
+```
+
+## Скрипты
+
+- `scripts/load_sheet_to_raw.py` — Загрузка из Sheets в raw.data
+- `scripts/check_env.py` — Проверка подключения к БД
+
+## Тесты
+
+```bash
+.venv/bin/python -m pytest tests/ -v
 ```
 
 ## CI/CD
 
-For GitHub Actions or other CI systems, configure these secrets:
+GitHub Actions запускается ежедневно в 03:00 UTC. Настройте секреты:
 - `POSTGRES_URI`
-- `SUPABASE_SERVICE_KEY`
 - `SUPABASE_URL`
-- `SHEETS_SA_JSON` (service account JSON contents)
-- API tokens: `BITRIX_WEBHOOK`, `GOOGLE_ADS_TOKEN`, `YANDEX_DIRECT_TOKEN`, `META_TOKEN`, `YOUTUBE_KEY`
+- `SUPABASE_SERVICE_KEY`
+- `SHEETS_SA_JSON`
+```

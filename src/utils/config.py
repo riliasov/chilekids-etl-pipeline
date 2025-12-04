@@ -12,14 +12,9 @@ class Settings(BaseSettings):
     POSTGRES_URI: str = Field(..., validation_alias="POSTGRES_URI")
     SUPABASE_URL: Optional[str] = None
     SUPABASE_SERVICE_KEY: Optional[str] = None
-    # Optional API key for public Sheets access (fallback when service account is not provided)
-    SHEETS_API_KEY: Optional[str] = None
-    SHEETS_SA_JSON: Optional[str] = None
-    BITRIX_WEBHOOK: Optional[str] = None
-    GOOGLE_ADS_TOKEN: Optional[str] = None
-    YANDEX_DIRECT_TOKEN: Optional[str] = None
-    META_TOKEN: Optional[str] = None
-    YOUTUBE_KEY: Optional[str] = None
+    # Google Sheets configuration
+    SHEETS_API_KEY: Optional[str] = None  # Fallback для публичного доступа
+    SHEETS_SA_JSON: Optional[str] = None  # Путь к JSON сервисного аккаунта
     ARCHIVE_PATH: str = Field(default="./archive")
     LOG_LEVEL: str = Field(default="INFO")
     # Connection pool sizing for asyncpg (small defaults to avoid exhausting hosted DB limits)

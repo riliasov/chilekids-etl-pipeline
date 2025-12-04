@@ -22,18 +22,14 @@ jobs:
         env:
           POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
         run: |
-          alembic upgrade head
+          # Миграции не нужны - используем прямой SQL
+          echo "Skipping Alembic (not in use)"
       - name: Run ETL Pipeline
         env:
           POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SHEETS_SA_JSON: ${{ secrets.SHEETS_SA_JSON }}
-          BITRIX_WEBHOOK: ${{ secrets.BITRIX_WEBHOOK }}
-          GOOGLE_ADS_TOKEN: ${{ secrets.GOOGLE_ADS_TOKEN }}
-          YANDEX_DIRECT_TOKEN: ${{ secrets.YANDEX_DIRECT_TOKEN }}
-          META_TOKEN: ${{ secrets.META_TOKEN }}
-          YOUTUBE_KEY: ${{ secrets.YOUTUBE_KEY }}
         run: |
           PYTHONPATH=. python main.py
 
