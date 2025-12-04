@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: etl_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    environment:
+      - POSTGRES_URI=postgresql://postgres:password@db:5432/etl_db
+      - SUPABASE_URL
+      - SUPABASE_SERVICE_KEY
+      - SHEETS_SA_JSON
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    command: ["bash","./scripts/run_etl.sh"]
+
+volumes:
+  pgdata:
