@@ -46,25 +46,25 @@ async def run_incremental_elt(test_mode: bool = False):
         batch_size = settings.BATCH_SIZE
         
         mode_str = "ТЕСТОВЫЙ" if test_mode else "ПОЛНЫЙ"
-        logger.info(f"=== {mode_str} ELT ПРОЦЕСС ===")
+        logger.info(f"🚀 === {mode_str} ELT ПРОЦЕСС ===")
         logger.info(f"Пакет: {batch_size}, Лимит: {limit or 'Нет'}")
         
         start_time = time.time()
         
         # Step 1: Query changed/new records from raw
-        logger.info("1. Поиск новых записей в raw.source_events...")
+        logger.info("🔍 1. Поиск новых записей в raw.source_events...")
         query_start = time.time()
         raw_records = await get_changed_raw_records(limit=limit)
         query_duration = time.time() - query_start
         
         if not raw_records:
-            logger.info("Новых записей не найдено. Работа завершена.")
+            logger.info("💤 Новых записей не найдено. Работа завершена.")
             return
         
-        logger.info(f"Найдено записей: {len(raw_records)} (поиск занял {query_duration:.1f}с)")
+        logger.info(f"✅ Найдено записей: {len(raw_records)} (поиск занял {query_duration:.1f}с)")
         
         # Step 2: Normalize records
-        logger.info("2. Нормализация данных...")
+        logger.info("🛠️ 2. Нормализация данных...")
         norm_start = time.time()
         normalized_records: List[Dict[str, Any]] = []
         errors = 0
@@ -83,12 +83,12 @@ async def run_incremental_elt(test_mode: bool = False):
                 errors += 1
                 # Log errors only if critical or in debug
                 if errors <= 5: # Show first 5 errors only to keep log compact
-                    logger.error(f"Ошибка нормализации (ID={raw_rec.get('raw_id')}): {e}")
+                    logger.error(f"❌ Ошибка нормализации (ID={raw_rec.get('raw_id')}): {e}")
                 continue
         
         norm_duration = time.time() - norm_start
         logger.info(
-            f"Нормализовано: {len(normalized_records)} "
+            f"✨ Нормализовано: {len(normalized_records)} "
             f"(ошибок: {errors}) за {norm_duration:.1f}с"
         )
 
@@ -98,7 +98,7 @@ async def run_incremental_elt(test_mode: bool = False):
             error_rate = errors / total_processed
             if error_rate > 0.1:  # 10% threshold
                 logger.warning(
-                    f"ВНИМАНИЕ: Высокий процент ошибок! "
+                    f"⚠️ ВНИМАНИЕ: Высокий процент ошибок! "
                     f"{error_rate:.1%} ({errors}/{total_processed})."
                 )
         
@@ -113,20 +113,20 @@ async def run_incremental_elt(test_mode: bool = False):
         upsert_start = time.time()
         upserted_count = 0
         if normalized_records:
-            logger.info(f"3. Сохранение {len(normalized_records)} записей в БД...")
+            logger.info(f"💾 3. Сохранение {len(normalized_records)} записей в БД...")
             upserted_count = await upsert_staging_records_batch(
                 normalized_records,
                 batch_size=batch_size
             )
-            logger.info(f"Успешно сохранено: {upserted_count}")
+            logger.info(f"✅ Успешно сохранено: {upserted_count}")
         else:
-            logger.warning("Нет записей для сохранения.")
+            logger.warning("⚠️ Нет записей для сохранения.")
         upsert_duration = time.time() - upsert_start
         
         total_duration = time.time() - start_time
         
         # Summary
-        logger.info("=== ИТОГИ ===")
+        logger.info("📊 === ИТОГИ ===")
         logger.info(f"Время: {total_duration:.1f}с | Обработано: {len(raw_records)} | Сохранено: {upserted_count}")
         logger.info(f"Этапы (сек): Поиск={query_duration:.1f}, Норм={norm_duration:.1f}, Сохр={upsert_duration:.1f}")
         logger.info("=========================")

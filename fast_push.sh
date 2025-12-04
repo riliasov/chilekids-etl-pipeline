@@ -8,21 +8,21 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}Starting manual git push...${NC}"
+echo -e "${YELLOW}🚀 Начинаем отправку в GitHub...${NC}"
 
 # Check status
 git status
 
 # Add all changes
-echo -e "${YELLOW}Adding all changes...${NC}"
+echo -e "${YELLOW}📦 Добавляем все изменения...${NC}"
 git add .
 
 # Ask for commit message
-echo -e "${GREEN}Enter commit message:${NC}"
+echo -e "${GREEN}📝 Введите сообщение коммита:${NC}"
 read commit_message
 
 if [ -z "$commit_message" ]; then
-    echo "Commit message cannot be empty. Aborting."
+    echo "❌ Сообщение коммита не может быть пустым. Отмена."
     exit 1
 fi
 
@@ -30,7 +30,7 @@ fi
 git commit -m "$commit_message"
 
 # Push
-echo -e "${YELLOW}Pushing to origin...${NC}"
+echo -e "${YELLOW}⬆️ Отправляем на сервер...${NC}"
 git push
 
-echo -e "${GREEN}Successfully pushed to GitHub!${NC}"
+echo -e "${GREEN}✅ Успешно отправлено в GitHub!${NC}"
