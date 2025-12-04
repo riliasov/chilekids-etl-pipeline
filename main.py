@@ -25,7 +25,8 @@ from src.utils.config import settings
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s | %(message)s',
+    datefmt='%H:%M:%S'
 )
 logger = logging.getLogger(__name__)
 
@@ -44,28 +45,26 @@ async def run_incremental_elt(test_mode: bool = False):
         limit = settings.TEST_LIMIT if test_mode else None
         batch_size = settings.BATCH_SIZE
         
-        mode_str = "TEST" if test_mode else "FULL"
-        logger.info(f"=" * 60)
-        logger.info(f"Starting {mode_str} incremental ELT process")
-        logger.info(f"Batch size: {batch_size}, Limit: {limit or 'None'}")
-        logger.info(f"=" * 60)
+        mode_str = "ТЕСТОВЫЙ" if test_mode else "ПОЛНЫЙ"
+        logger.info(f"=== {mode_str} ELT ПРОЦЕСС ===")
+        logger.info(f"Пакет: {batch_size}, Лимит: {limit or 'Нет'}")
         
         start_time = time.time()
         
         # Step 1: Query changed/new records from raw
-        logger.info("Step 1: Querying changed/new records from raw.source_events...")
+        logger.info("1. Поиск новых записей в raw.source_events...")
         query_start = time.time()
         raw_records = await get_changed_raw_records(limit=limit)
         query_duration = time.time() - query_start
         
         if not raw_records:
-            logger.info("No changed records found. Nothing to process.")
+            logger.info("Новых записей не найдено. Работа завершена.")
             return
         
-        logger.info(f"Found {len(raw_records)} records to process (took {query_duration:.2f}s)")
+        logger.info(f"Найдено записей: {len(raw_records)} (поиск занял {query_duration:.1f}с)")
         
         # Step 2: Normalize records
-        logger.info("Step 2: Normalizing records...")
+        logger.info("2. Нормализация данных...")
         norm_start = time.time()
         normalized_records: List[Dict[str, Any]] = []
         errors = 0
@@ -82,19 +81,15 @@ async def run_incremental_elt(test_mode: bool = False):
                 
             except Exception as e:
                 errors += 1
-                raw_id = raw_rec.get('raw_id', 'unknown')
-                logger.error(
-                    f"Failed to normalize record {idx+1}/{len(raw_records)} "
-                    f"(raw_id={raw_id}): {e}",
-                    exc_info=True
-                )
-                # Continue processing other records
+                # Log errors only if critical or in debug
+                if errors <= 5: # Show first 5 errors only to keep log compact
+                    logger.error(f"Ошибка нормализации (ID={raw_rec.get('raw_id')}): {e}")
                 continue
         
         norm_duration = time.time() - norm_start
         logger.info(
-            f"Normalized {len(normalized_records)} records "
-            f"({errors} errors) in {norm_duration:.2f}s"
+            f"Нормализовано: {len(normalized_records)} "
+            f"(ошибок: {errors}) за {norm_duration:.1f}с"
         )
 
         # Monitoring: Check error rate
@@ -102,72 +97,39 @@ async def run_incremental_elt(test_mode: bool = False):
         if total_processed > 0:
             error_rate = errors / total_processed
             if error_rate > 0.1:  # 10% threshold
-                logger.error(
-                    f"ALERT: High normalization error rate detected! "
-                    f"{error_rate:.1%} ({errors}/{total_processed} records failed). "
-                    f"Check logs for details."
-                )
-            elif errors > 0:
                 logger.warning(
-                    f"Normalization completed with {errors} errors "
-                    f"({error_rate:.1%} failure rate)."
+                    f"ВНИМАНИЕ: Высокий процент ошибок! "
+                    f"{error_rate:.1%} ({errors}/{total_processed})."
                 )
         
         # Step 3: Show examples in test mode
         if test_mode and normalized_records:
-            logger.info("\n" + "=" * 60)
-            logger.info("SAMPLE NORMALIZED RECORDS (first 3):")
-            logger.info("=" * 60)
+            logger.info("--- ПРИМЕРЫ ЗАПИСЕЙ (первые 3) ---")
             
             for i, rec in enumerate(normalized_records[:3], 1):
-                logger.info(f"\nExample {i}:")
-                logger.info(f"  raw_id: {rec.get('raw_id')}")
-                logger.info(f"  client: {rec.get('client')}")
-                logger.info(f"  type: {rec.get('type')}")
-                logger.info(f"  category: {rec.get('category')}")
-                logger.info(f"  total_rub: {rec.get('total_rub')}")
-                logger.info(f"  payment_date: {rec.get('payment_date')}")
-                logger.info(f"  vendor: {rec.get('vendor')}")
-                logger.info(f"  payload_hash: {rec.get('payload_hash')[:16]}...")
-            
-            logger.info("\n" + "=" * 60)
+                logger.info(f"Запись {i}: {rec.get('client')} | {rec.get('total_rub')} руб. | {rec.get('category')}")
         
         # Step 4: Upsert to staging
         upsert_start = time.time()
         upserted_count = 0
         if normalized_records:
-            logger.info(f"Step 3: Upserting {len(normalized_records)} records to staging.records...")
+            logger.info(f"3. Сохранение {len(normalized_records)} записей в БД...")
             upserted_count = await upsert_staging_records_batch(
                 normalized_records,
                 batch_size=batch_size
             )
-            logger.info(f"Successfully upserted {upserted_count} records")
+            logger.info(f"Успешно сохранено: {upserted_count}")
         else:
-            logger.warning("No records to upsert (all failed normalization)")
+            logger.warning("Нет записей для сохранения.")
         upsert_duration = time.time() - upsert_start
         
         total_duration = time.time() - start_time
         
-        # Calculate data volume (approximate)
-        total_bytes = sum(len(json.dumps(r.get('raw_payload', {}))) for r in raw_records)
-        total_mb = total_bytes / (1024 * 1024)
-
         # Summary
-        logger.info("\n" + "=" * 60)
-        logger.info("ELT SUMMARY:")
-        logger.info(f"  Total Duration: {total_duration:.2f}s")
-        logger.info(f"  Data Processed: {total_mb:.2f} MB ({len(raw_records)} records)")
-        logger.info("-" * 60)
-        logger.info("  Stage Durations:")
-        logger.info(f"    1. Querying:    {query_duration:.2f}s")
-        logger.info(f"    2. Normalizing: {norm_duration:.2f}s")
-        logger.info(f"    3. Upserting:   {upsert_duration:.2f}s")
-        logger.info("-" * 60)
-        logger.info(f"  Records queried:    {len(raw_records)}")
-        logger.info(f"  Records normalized: {len(normalized_records)}")
-        logger.info(f"  Normalization errors: {errors}")
-        logger.info(f"  Records upserted:   {upserted_count}")
-        logger.info("=" * 60)
+        logger.info("=== ИТОГИ ===")
+        logger.info(f"Время: {total_duration:.1f}с | Обработано: {len(raw_records)} | Сохранено: {upserted_count}")
+        logger.info(f"Этапы (сек): Поиск={query_duration:.1f}, Норм={norm_duration:.1f}, Сохр={upsert_duration:.1f}")
+        logger.info("=========================")
         
     except Exception as e:
         logger.error(f"ELT process failed: {e}", exc_info=True)
