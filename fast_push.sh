@@ -31,6 +31,7 @@ git commit -m "$commit_message"
 
 # Push
 echo -e "${YELLOW}⬆️ Отправляем на сервер...${NC}"
-git push
+current_branch=$(git branch --show-current)
+git push -u origin "$current_branch"
 
 echo -e "${GREEN}✅ Успешно отправлено в GitHub!${NC}"
