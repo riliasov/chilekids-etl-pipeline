@@ -14,11 +14,9 @@ def test_imports():
         sys.path.insert(0, repo_root)
     """Test that all core modules can be imported without errors."""
     # Core utilities
-    from src.utils import db, config, hash, auth
+    # Core utilities
+    from src import db, config, utils
     # ETL modules
-    from src.extract import google_sheets
-    from src.transform import normalizer, loader, transformer
-    from src.load import postgres_loader
-    from src.marts import build_marts
-    from src.export import sheets_export
+    from src import sheets, transform, marts
+    assert True  # импорты прошли успешно
     assert True  # импорты прошли успешно

@@ -7,7 +7,7 @@ import sys
 import asyncio
 import json
 import os
-from src.extract.google_sheets import fetch_google_sheets
+from src.sheets import fetch_google_sheets
 
 
 def main():

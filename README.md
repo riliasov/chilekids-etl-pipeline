@@ -1,57 +1,96 @@
-# ChileKids ETL Pipeline — Google Sheets to Supabase
+# ChileKids ETL Pipeline
 
-Async ETL pipeline для извлечения данных из Google Sheets и загрузки в Supabase PostgreSQL с нормализацией и созданием data marts.
+## Описание
+ETL пайплайн для синхронизации данных из Google Sheets в Supabase (PostgreSQL).
+Проект максимально упрощен и содержит только необходимую логику для экстракции, нормализации и загрузки данных.
 
-## Архитектура
-
-- **Extract** (`src/extract/`): Асинхронное извлечение из Google Sheets
-- **Transform** (`src/transform/`): Нормализация данных с обработкой дат, чисел, валют
-- **Load** (`src/load/`): Массовая загрузка в `staging.records` с использованием `executemany`
-- **Marts** (`src/marts/`): Агрегированные витрины данных
-
-## Быстрый старт
-
-### 1. Настройка окружения
-
-Создайте файл `.env`:
-```bash
-POSTGRES_URI=postgresql://user:pass@host:5432/db
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your_service_key
-SHEETS_SA_JSON=./secrets/service-account.json
+## Структура проекта
+```
+chilekids-etl-pipeline/
+├── src/
+│   ├── config.py       # Конфигурация
+│   ├── db.py           # Работа с БД и авторизация
+│   ├── sheets.py       # Google Sheets (чтение/запись)
+│   ├── transform.py    # Логика трансформации и загрузки
+│   ├── marts.py        # Построение витрин данных
+│   └── utils.py        # Утилиты (хеширование, HTTP)
+├── main.py             # CLI (единая точка входа)
+├── tests/              # Тесты
+├── requirements.txt    # Зависимости
+└── .env                # Переменные окружения
 ```
 
-### 2. Установка
+## Установка
 
+1. **Клонировать репозиторий:**
+   ```bash
+   git clone <repo_url>
+   cd chilekids-etl-pipeline
+   ```
+
+2. **Создать виртуальное окружение и установить зависимости:**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. **Настроить `.env`:**
+   Создайте файл `.env` на основе примера и заполните переменные:
+   ```ini
+   POSTGRES_URI=postgresql://user:pass@host:port/dbname
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_SERVICE_KEY=your-service-key
+   SHEETS_SA_JSON=secrets/service_account.json
+   ```
+
+## Использование
+
+Все операции выполняются через `main.py`:
+
+### 1. Запуск инкрементального ELT процесса
+Основной режим работы. Загружает новые данные из `raw.data`, нормализует их и обновляет `staging.records`.
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+python main.py run
+```
+Опции:
+- `--test`: Тестовый режим (обрабатывает только 100 записей, выводит примеры).
+
+### 2. Загрузка данных из Google Sheets
+Извлекает данные из таблицы и сохраняет их в `raw.data` (без нормализации).
+```bash
+python main.py load <SPREADSHEET_ID> [RANGE]
+```
+Пример:
+```bash
+python main.py load 1A2B3C... Sheet1!A:AF
 ```
 
-### 3. Запуск
-
+### 3. Проверка окружения
+Проверяет наличие `.env`, переменных и подключение к БД.
 ```bash
-python main.py              # Полный ETL
-python main.py --test       # Тестовый режим (лимит 100 записей)
+python main.py check
 ```
 
-## Скрипты
-
-- `scripts/load_sheet_to_raw.py` — Загрузка из Sheets в raw.data
-- `scripts/check_env.py` — Проверка подключения к БД
-
-## Тесты
-
+## Тестирование
+Для запуска тестов используйте `pytest`:
 ```bash
-.venv/bin/python -m pytest tests/ -v
+pytest tests/ -v
 ```
 
-## CI/CD
+## Разработка
+- **Нормализация:** Логика парсинга полей находится в `src/transform.py`.
+- **Витрины:** SQL запросы для витрин находятся в `src/marts.py`.
+- **Конфиг:** Все настройки в `src/config.py`.
 
-GitHub Actions запускается ежедневно в 03:00 UTC. Настройте секреты:
-- `POSTGRES_URI`
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_KEY`
-- `SHEETS_SA_JSON`
+**Quick Start**
+- **Script:** : Быстрый запуск из корня репозитория: `bash run.sh` или `./run.sh` (для этого может понадобиться `chmod +x run.sh`).
+- **VS Code:** : Откройте панель Run и запустите конфигурацию `Python: Run main` (создана в `.vscode/launch.json`).
+- **Что делает скрипт:** : Скрипт создаёт виртуальное окружение в `.venv` при необходимости, активирует его, обновляет `pip`, устанавливает зависимости из `requirements.txt` и запускает `main.py`.
+
+**Оценка подхода**
+- **Плюсы:** : Очень быстро для разработчика — достаточно открыть проект и выполнить одну команду; одинаковый процесс на macOS/Linux; не требует глобальной установки зависимостей.
+- **Минусы:** : Скрипт автоматически устанавливает зависимости в проект — это удобно для разработки, но нужно внимательно относиться к версиям в `requirements.txt` и окружению в CI/production. Для production лучше иметь отдельный Dockerfile/CI-пайплайн и фиксированные образы.
+- **Рекомендация:** : Для локальной разработки и ознакомления — подход корректный и удобный. Для деплоя — оставьте Docker/CI процесс и не полагайтесь на локальные скрипты.
+
 ```

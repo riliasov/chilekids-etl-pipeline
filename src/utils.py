@@ -1,8 +1,27 @@
+import json
+import hashlib
 import aiohttp
 import asyncio
 import logging
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
+
+# --- Hash Utils ---
+
+def payload_hash(payload: Dict[str, Any]) -> str:
+    """
+    Вычисляет детерминированный MD5 хеш словаря payload.
+    """
+    serialized = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(',', ':')
+    )
+    return hashlib.md5(serialized.encode('utf-8')).hexdigest()
+
+# --- HTTP Utils ---
 
 async def request_with_retries(method: str, url: str, retries: int = 3, backoff: float = 1.0, **kwargs):
     last_exc = None

@@ -1,5 +1,5 @@
 import asyncio
-from src.utils.auth import get_google_access_token
+from src.db import get_google_access_token
 
 def test_auth():
     print("Getting token...")

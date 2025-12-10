@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.transform.loader import upsert_staging_records
+from src.transform import upsert_staging_records
 
 
 class TestJSONBSerialization:
@@ -159,7 +159,7 @@ class TestUpsertWithJSONB:
             'raw_payload': {'Date': '16.07.2023', 'Client': 'Test Client'}  # Dict payload
         }]
         
-        with patch('src.transform.loader.get_db_pool', return_value=mock_pool):
+        with patch('src.transform.get_db_pool', return_value=mock_pool):
             result = await upsert_staging_records(records)
         
         # Verify upsert was called

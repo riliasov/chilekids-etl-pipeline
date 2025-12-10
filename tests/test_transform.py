@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime
 from decimal import Decimal
 
-from src.transform.normalizer import (
+from src.transform import (
     normalize_record,
     _to_timestamptz,
     _to_decimal,
@@ -11,7 +11,7 @@ from src.transform.normalizer import (
     _get,
     payload_hash
 )
-from src.utils.hash import payload_hash as hash_func
+from src.utils import payload_hash as hash_func
 
 
 # Sample payloads based on project data

@@ -1,20 +1,17 @@
 import aiohttp
 import pandas as pd
-from typing import List, Dict, Any
-from ..utils.auth import load_service_account_info, get_google_access_token, upload_to_supabase_storage
-from ..utils.config import settings
-from pathlib import Path
 import logging
+from typing import List, Dict, Any
+from pathlib import Path
+from .db import get_google_access_token, upload_to_supabase_storage
+from .config import settings
 
 logger = logging.getLogger(__name__)
-
 
 async def fetch_google_sheets(spreadsheet_id: str, range_name: str = 'Sheet1!A:AF') -> List[Dict[str, Any]]:
     token = get_google_access_token()
     url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{range_name}"
 
-    # Prefer service-account OAuth token. If not available, fall back to an
-    # API key (useful for public sheets) if present in settings.
     headers = None
     params = None
     if token:
@@ -28,29 +25,25 @@ async def fetch_google_sheets(spreadsheet_id: str, range_name: str = 'Sheet1!A:A
     async with aiohttp.ClientSession() as session:
         logger.info(f"📥 Загрузка URL: {url}")
         async with session.get(url, headers=headers, params=params) as resp:
-            logger.info(f"Статус ответа: {resp.status}")
             data = await resp.json()
             logger.info("✅ Данные получены")
+    
     values = data.get('values', [])
     if not values:
         return []
     
     # Ensure we have headers for all 32 columns (A-AF)
-    # If the sheet has fewer columns, we'll pad the headers and rows.
     raw_headers = values[0]
     expected_col_count = 32
     
-    # Pad headers if necessary
     if len(raw_headers) < expected_col_count:
         raw_headers += [f"Column_{i+1}" for i in range(len(raw_headers), expected_col_count)]
     elif len(raw_headers) > expected_col_count:
-         # If more, we slice (though A:AF request should limit this, sometimes manual edits mess it up)
          raw_headers = raw_headers[:expected_col_count]
 
     headers_row = raw_headers
     rows = values[1:]
     
-    # Pad rows to match header length
     records = [dict(zip(headers_row, r + [""] * (len(headers_row) - len(r)))) for r in rows]
 
     df = pd.DataFrame(records)
@@ -66,3 +59,19 @@ async def fetch_google_sheets(spreadsheet_id: str, range_name: str = 'Sheet1!A:A
         logger.warning("⚠️ Загрузка в Supabase не удалась: %s", exc)
 
     return records
+
+async def push_df_to_sheet(spreadsheet_id: str, sheet_name: str, df: pd.DataFrame) -> dict:
+    token = get_google_access_token()
+    if not token:
+        raise RuntimeError('❌ Отсутствует токен доступа Google')
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{sheet_name}!A1:append?valueInputOption=RAW"
+    values = [list(df.columns)] + df.fillna('').astype(str).values.tolist()
+    body = {"values": values}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=body) as resp:
+            try:
+                return await resp.json()
+            except Exception:
+                text = await resp.text()
+                return {"status": resp.status, "text": text}

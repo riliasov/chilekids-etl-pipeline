@@ -6,8 +6,10 @@
 3. Поддерживает режим --test для ограниченной обработки
 
 Использование:
-    python -m scripts.run_elt          # Полный инкрементальный запуск
-    python -m scripts.run_elt --test   # Тестовый режим (первые 100 записей, показать примеры)
+    python main.py run          # Полный инкрементальный запуск
+    python main.py run --test   # Тестовый режим (первые 100 записей, показать примеры)
+    python main.py load <SPREADSHEET_ID> [RANGE]  # Загрузить из Google Sheets
+    python main.py check        # Проверить окружение
 """
 import sys
 import asyncio
@@ -17,10 +19,10 @@ import json
 import time
 from typing import List, Dict, Any
 
-from src.transform.normalizer import get_changed_raw_records, normalize_record
-from src.transform.loader import upsert_staging_records_batch
-from src.utils.db import init_db_pool, close_db_pool
-from src.utils.config import settings
+from src.transform import get_changed_raw_records, normalize_record, upsert_staging_records_batch
+from src.db import init_db_pool, close_db_pool, fetch
+from src.config import settings
+from src.sheets import fetch_google_sheets
 
 # Configure logging
 logging.basicConfig(
@@ -30,6 +32,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# --- Command: RUN ---
 
 async def run_incremental_elt(test_mode: bool = False):
     """
@@ -108,7 +111,7 @@ async def run_incremental_elt(test_mode: bool = False):
             
             for i, rec in enumerate(normalized_records[:3], 1):
                 logger.info(f"Запись {i}: {rec.get('client')} | {rec.get('total_rub')} руб. | {rec.get('category')}")
-        
+                
         # Step 4: Upsert to staging
         upsert_start = time.time()
         upserted_count = 0
@@ -139,21 +142,117 @@ async def run_incremental_elt(test_mode: bool = False):
         await close_db_pool()
 
 
+async def load_raw(source: str, records: List[Dict[str, Any]]):
+    """Bulk insert raw records into raw.data table."""
+    if not records:
+        return
+    
+    pool = await init_db_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.executemany(
+                "INSERT INTO raw.data (id, source, payload, payload_hash) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING",
+                [
+                    (
+                        r['id'],
+                        source,
+                        json.dumps(r['payload'], ensure_ascii=False),
+                        __import__('hashlib').md5(
+                            json.dumps(r['payload'], sort_keys=True).encode()
+                        ).hexdigest()
+                    )
+                    for r in records
+                ]
+            )
+
+
+async def run_load_sheets(spreadsheet_id: str, range_name: str):
+    """Load data from Google Sheets into raw.data."""
+    await init_db_pool()
+    try:
+        logger.info(f"📥 Извлечение из Google Sheets: {spreadsheet_id} {range_name} ...")
+        records = await fetch_google_sheets(spreadsheet_id, range_name)
+        logger.info(f"✅ Получено {len(records)} строк. Загрузка в raw.data ...")
+        
+        rows = []
+        for i, r in enumerate(records):
+            # Create deterministic ID based on content
+            import hashlib
+            h = hashlib.sha256()
+            h.update(str(r).encode('utf-8'))
+            h.update(str(i).encode('utf-8'))
+            rows.append({
+                'id': f"gsheet_{i}_" + h.hexdigest()[:12],
+                'payload': r
+            })
+        
+        await load_raw('google_sheets', rows)
+        logger.info(f"💾 Загружено {len(rows)} строк.")
+    finally:
+        await close_db_pool()
+
+
+async def run_check_env():
+    """Check environment, .env, and DB connection."""
+    logger.info("Проверка окружения...")
+    
+    import os
+    if not os.path.exists('.env'):
+        logger.error("❌ .env not found")
+    else:
+        logger.info("✅ .env found")
+    
+    if not settings.POSTGRES_URI:
+        logger.error("❌ POSTGRES_URI not set")
+    else:
+        logger.info("✅ POSTGRES_URI set")
+    
+    try:
+        await init_db_pool()
+        res = await fetch("SELECT 1 as val")
+        if res and res[0]['val'] == 1:
+            logger.info("✅ DB Connection successful")
+        else:
+            logger.error("❌ DB Connection failed")
+    except Exception as e:
+        logger.error(f"❌ DB Connection failed: {e}")
+    finally:
+        await close_db_pool()
+
+
+
 def main():
     """Точка входа CLI."""
     parser = argparse.ArgumentParser(
-        description="Incremental ELT: raw.source_events → staging.records"
+        description="ChileKids ETL Pipeline: raw.source_events → staging.records"
     )
-    parser.add_argument(
+    subparsers = parser.add_subparsers(dest='command', required=True)
+    
+    # Run command
+    p_run = subparsers.add_parser('run', help='Run incremental ELT')
+    p_run.add_argument(
         '--test',
         action='store_true',
         help='Test mode: process only first 100 records and show examples'
     )
     
+    # Load command
+    p_load = subparsers.add_parser('load', help='Load from Google Sheets')
+    p_load.add_argument('spreadsheet_id', help='Google Spreadsheet ID')
+    p_load.add_argument('range', nargs='?', default='Sheet1!A:AF', help='Range (default: Sheet1!A:AF)')
+    
+    # Check command
+    p_check = subparsers.add_parser('check', help='Check environment')
+    
     args = parser.parse_args()
     
     try:
-        asyncio.run(run_incremental_elt(test_mode=args.test))
+        if args.command == 'run':
+            asyncio.run(run_incremental_elt(test_mode=args.test))
+        elif args.command == 'load':
+            asyncio.run(run_load_sheets(args.spreadsheet_id, args.range))
+        elif args.command == 'check':
+            asyncio.run(run_check_env())
     except KeyboardInterrupt:
         logger.info("Process interrupted by user")
         sys.exit(1)
@@ -164,4 +263,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

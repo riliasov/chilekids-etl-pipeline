@@ -1,7 +1,7 @@
 import asyncio
 import asyncpg
 import pytest
-from src.utils.config import settings
+from src.config import settings
 
 @pytest.mark.asyncio
 async def test_connection():
