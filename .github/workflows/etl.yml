@@ -51,13 +51,15 @@ jobs:
           git --no-pager --no-color diff || true
           mv poetry.lock.ci.bak poetry.lock || true
       
-      - name: Cache Poetry virtualenv
+      - name: Cache pip and Poetry caches
         uses: actions/cache@v3
         with:
-          path: .venv
-          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+          key: ${{ runner.os }}-poetry-cache-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
-            ${{ runner.os }}-poetry-
+            ${{ runner.os }}-poetry-cache-
       
       - name: Install dependencies (production only)
         run: poetry install --without dev
@@ -74,4 +76,16 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SHEETS_SA_JSON: ${{ secrets.SHEETS_SA_JSON }}
         run: poetry run python main.py
+
+      - name: Write Sheets SA JSON to file (if provided)
+        if: ${{ secrets.SHEETS_SA_JSON != '' }}
+        run: |
+          mkdir -p ./secrets
+          echo "${{ secrets.SHEETS_SA_JSON }}" > ./secrets/service_account.json
+          chmod 600 ./secrets/service_account.json
+        shell: bash
+
+      - name: Export SHEETS_SA_JSON path to env
+        if: ${{ secrets.SHEETS_SA_JSON != '' }}
+        run: echo "SHEETS_SA_JSON=./secrets/service_account.json" >> $GITHUB_ENV
 

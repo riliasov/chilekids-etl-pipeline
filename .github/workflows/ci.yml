@@ -25,13 +25,15 @@ jobs:
         virtualenvs-create: true
         virtualenvs-in-project: true
     
-    - name: Cache Poetry virtualenv
+    - name: Cache pip and Poetry caches
       uses: actions/cache@v3
       with:
-        path: .venv
-        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+        path: |
+          ~/.cache/pypoetry
+          ~/.cache/pip
+        key: ${{ runner.os }}-poetry-cache-${{ hashFiles('**/poetry.lock') }}
         restore-keys: |
-          ${{ runner.os }}-poetry-
+          ${{ runner.os }}-poetry-cache-
         
     - name: Install dependencies
       run: poetry install
