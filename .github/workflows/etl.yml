@@ -31,7 +31,7 @@ jobs:
             ${{ runner.os }}-poetry-
       
       - name: Install dependencies (production only)
-        run: poetry install --no-dev
+        run: poetry install --without dev
       - name: Run Alembic migrations
         env:
           POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
