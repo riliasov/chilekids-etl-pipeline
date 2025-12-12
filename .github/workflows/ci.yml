@@ -34,4 +34,5 @@ jobs:
     - name: Run tests
       env:
         PYTHONPATH: .
+        POSTGRES_URI: postgresql://user:pass@localhost:5432/testdb
       run: pytest tests/ -v

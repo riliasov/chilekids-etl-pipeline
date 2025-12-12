@@ -15,14 +15,6 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Diagnostic: print versions
-        run: |
-          echo '--- python version ---'
-          python --version || true
-          echo '--- git branch ---'
-          git rev-parse --abbrev-ref HEAD || true
-          echo '--- git status ---'
-          git status --porcelain || true
 
       - name: Cache pip
         uses: actions/cache@v3
