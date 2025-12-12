@@ -1,5 +1,5 @@
 #!/bin/bash
-# ./fast_push.sh <commit_message> to push changes to GitHub
+# ./fast_push.sh
 
 set -e
 

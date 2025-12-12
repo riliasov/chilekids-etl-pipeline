@@ -49,6 +49,7 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SHEETS_SA_JSON: ${{ secrets.SHEETS_SA_JSON }}
+          PYTHONPATH: .
         run: python main.py
 
       - name: Write Sheets SA JSON to file (if provided)
