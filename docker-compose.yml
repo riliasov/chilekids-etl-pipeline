@@ -22,7 +22,7 @@ services:
       - db
     volumes:
       - .:/app
-    command: ["bash","./scripts/run_etl.sh"]
+    # command: ["bash","./scripts/run_etl.sh"]
 
 volumes:
   pgdata:

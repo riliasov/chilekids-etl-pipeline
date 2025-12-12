@@ -20,21 +20,14 @@ fi
 # Активируем окружение (работает в zsh/bash)
 . .venv/bin/activate
 
-echo "Проверяю наличие Poetry..."
-if command -v poetry &> /dev/null; then
-  echo "Устанавливаю зависимости через Poetry..."
-  poetry install
-  echo "Запускаю main.py через Poetry..."
-  exec poetry run python main.py "$@"
-else
-  echo "Poetry не найден. Используюю pip (legacy)..."
-  echo "Обновляю pip и устанавливаю зависимости..."
-  pip install --upgrade pip
-  pip install -r requirements.txt
-  
-  # Установить PYTHONPATH для корректного разрешения импортов
-  export PYTHONPATH="${PYTHONPATH:-}:${PWD}"
-  
-  echo "Запускаю main.py..."
-  exec .venv/bin/python main.py "$@"
-fi
+
+# Обновляем pip и устанавливаем зависимости
+echo "Обновляю pip и устанавливаю зависимости..."
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Установить PYTHONPATH для корректного разрешения импортов
+export PYTHONPATH="${PYTHONPATH:-}:${PWD}"
+
+echo "Запускаю main.py..."
+exec python main.py "$@"

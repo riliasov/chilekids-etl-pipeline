@@ -15,54 +15,28 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: "2.2.1"
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Diagnostic: print versions and file heads
+      - name: Diagnostic: print versions
         run: |
-          echo '--- poetry version ---'
-          poetry --version || true
           echo '--- python version ---'
           python --version || true
           echo '--- git branch ---'
           git rev-parse --abbrev-ref HEAD || true
           echo '--- git status ---'
           git status --porcelain || true
-          echo '--- pyproject.toml (head) ---'
-          sed -n '1,80p' pyproject.toml || true
-          echo '--- poetry.lock (head) ---'
-          sed -n '1,80p' poetry.lock || true
 
-      - name: Diagnostic: run `poetry lock` and show diff (no commit)
-        run: |
-          set -e
-          git config user.email "ci@example.com"
-          git config user.name "CI"
-          # backup lock, regenerate, show diff, then restore backup
-          cp poetry.lock poetry.lock.ci.bak || true
-          poetry lock || true
-          echo '--- git diff --name-only ---'
-          git --no-pager --no-color diff --name-only || true
-          echo '--- git diff ---'
-          git --no-pager --no-color diff || true
-          mv poetry.lock.ci.bak poetry.lock || true
-      
-      - name: Cache pip and Poetry caches
+      - name: Cache pip
         uses: actions/cache@v3
         with:
-          path: |
-            ~/.cache/pypoetry
-            ~/.cache/pip
-          key: ${{ runner.os }}-poetry-cache-${{ hashFiles('**/poetry.lock') }}
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-poetry-cache-
+            ${{ runner.os }}-pip-
       
-      - name: Install dependencies (production only)
-        run: poetry install --without dev
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
       - name: Run Alembic migrations
         env:
           POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
@@ -75,7 +49,7 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SHEETS_SA_JSON: ${{ secrets.SHEETS_SA_JSON }}
-        run: poetry run python main.py
+        run: python main.py
 
       - name: Write Sheets SA JSON to file (if provided)
         if: ${{ secrets.SHEETS_SA_JSON != '' }}
