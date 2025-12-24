@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # --- Command: RUN ---
 
-async def run_incremental_elt(test_mode: bool = False):
+async def run_incremental_elt(test_mode: bool = False, source: str = 'google_sheets', source_type: str = 'live'):
     """
     Запустить инкрементальный ELT: трансформация измененных raw-записей в staging.
     
@@ -55,9 +55,9 @@ async def run_incremental_elt(test_mode: bool = False):
         start_time = time.time()
         
         # Step 1: Query changed/new records from raw
-        logger.info("🔍 1. Поиск новых записей в raw.source_events...")
+        logger.info(f"🔍 1. Поиск новых записей в raw.source_events (source={source})...")
         query_start = time.time()
-        raw_records = await get_changed_raw_records(limit=limit)
+        raw_records = await get_changed_raw_records(source=source, limit=limit)
         query_duration = time.time() - query_start
         
         if not raw_records:
@@ -78,7 +78,8 @@ async def run_incremental_elt(test_mode: bool = False):
                     raw_id=raw_rec['raw_id'],
                     sheet_row_number=raw_rec.get('sheet_row_number'),
                     received_at=raw_rec['received_at'],
-                    payload=raw_rec['raw_payload']
+                    payload=raw_rec['raw_payload'],
+                    source_type=source_type
                 )
                 normalized_records.append(normalized)
                 
@@ -166,27 +167,55 @@ async def load_raw(source: str, records: List[Dict[str, Any]]):
             )
 
 
-async def run_load_sheets(spreadsheet_id: str, range_name: str):
+async def run_load_sheets(spreadsheet_id: str, range_name: str, source: str = 'google_sheets'):
     """Load data from Google Sheets into raw.data."""
     await init_db_pool()
     try:
-        logger.info(f"📥 Извлечение из Google Sheets: {spreadsheet_id} {range_name} ...")
+        logger.info(f"📥 Извлечение из Google Sheets: {spreadsheet_id} {range_name} (source={source}) ...")
         records = await fetch_google_sheets(spreadsheet_id, range_name)
         logger.info(f"✅ Получено {len(records)} строк. Загрузка в raw.data ...")
         
+        # Prepare rows with duplicate detection
         rows = []
+        seen_hashes = {}
+        duplicates_count = 0
+        
         for i, r in enumerate(records):
-            # Create deterministic ID based on content
+            # 1. Try to get explicit ID
+            # Normalize keys to find 'id' case-insensitively
+            keys_norm = {k.lower().strip(): k for k in r.keys()}
+            id_key = keys_norm.get('id') or keys_norm.get('row_id') or keys_norm.get('uuid')
+            
+            raw_id = None
+            if id_key and r[id_key]:
+                raw_id = str(r[id_key]).strip()
+            
+            # 2. Fallback to Content Hash
             import hashlib
-            h = hashlib.sha256()
-            h.update(str(r).encode('utf-8'))
-            h.update(str(i).encode('utf-8'))
+            payload_str = json.dumps(r, sort_keys=True)
+            h = hashlib.sha256(payload_str.encode('utf-8')).hexdigest()
+            
+            if not raw_id:
+                # User warning logic: Check for full duplicates in source
+                if h in seen_hashes:
+                    duplicates_count += 1
+                    if duplicates_count <= 5:
+                        logger.warning(f"⚠️ Найдена строка-дубликат (строка {i+2}). Рекомендуется добавить уникальный ID. Content hash: {h[:8]}")
+                seen_hashes[h] = True
+                
+                # We still need a unique ID for DB constraints, so we use hash + row info as fallback
+                # But heavily encourage PK usage in logs
+                raw_id = f"gsheet_auto_{h[:12]}_{i}"
+
             rows.append({
-                'id': f"gsheet_{i}_" + h.hexdigest()[:12],
+                'id': raw_id,
                 'payload': r
             })
         
-        await load_raw('google_sheets', rows)
+        if duplicates_count > 0:
+             logger.warning(f"⚠️ Всего найдено дубликатов хешей данных: {duplicates_count}. Это может привести к проблемам. Рекомендуется добавить колонку 'id' в Google Sheet.")
+
+        await load_raw(source, rows)
         logger.info(f"💾 Загружено {len(rows)} строк.")
     finally:
         await close_db_pool()
@@ -235,11 +264,14 @@ def main():
         action='store_true',
         help='Test mode: process only first 100 records and show examples'
     )
+    p_run.add_argument('--source', default='google_sheets', help='Raw data source name')
+    p_run.add_argument('--source-type', default='live', help='Target staging source_type tag')
     
     # Load command
     p_load = subparsers.add_parser('load', help='Load from Google Sheets')
     p_load.add_argument('spreadsheet_id', help='Google Spreadsheet ID')
     p_load.add_argument('range', nargs='?', default='Sheet1!A:AF', help='Range (default: Sheet1!A:AF)')
+    p_load.add_argument('--source', default='google_sheets', help='Store as this source in raw.data')
     
     # Check command
     p_check = subparsers.add_parser('check', help='Check environment')
@@ -248,9 +280,9 @@ def main():
     
     try:
         if args.command == 'run':
-            asyncio.run(run_incremental_elt(test_mode=args.test))
+            asyncio.run(run_incremental_elt(test_mode=args.test, source=args.source, source_type=args.source_type))
         elif args.command == 'load':
-            asyncio.run(run_load_sheets(args.spreadsheet_id, args.range))
+            asyncio.run(run_load_sheets(args.spreadsheet_id, args.range, source=args.source))
         elif args.command == 'check':
             asyncio.run(run_check_env())
     except KeyboardInterrupt:

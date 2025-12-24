@@ -24,12 +24,19 @@ async def init_db_pool(min_size: int | None = None, max_size: int | None = None)
         if max_size < 1: max_size = 1
 
         import asyncio
-        _pool = await asyncio.wait_for(
-            asyncpg.create_pool(
-                dsn=str(settings.POSTGRES_URI), min_size=min_size, max_size=max_size
-            ),
-            timeout=30.0
-        )
+        import re
+        try:
+            _pool = await asyncio.wait_for(
+                asyncpg.create_pool(
+                    dsn=str(settings.POSTGRES_URI), min_size=min_size, max_size=max_size
+                ),
+                timeout=30.0
+            )
+        except Exception as e:
+            # Mask password in DSN for logging
+            masked_dsn = re.sub(r':([^@]+)@', ':***@', str(settings.POSTGRES_URI))
+            logger.error(f"Failed to connect to DB. DSN: {masked_dsn} | Error: {e}")
+            raise
     return _pool
 
 async def close_db_pool() -> None:

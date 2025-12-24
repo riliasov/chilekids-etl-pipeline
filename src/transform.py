@@ -77,12 +77,13 @@ def _get(payload: Dict[str, Any], key_variants: List[str]) -> Any:
 
 # --- Normalizer Core ---
 
-def normalize_record(raw_id: int, sheet_row_number: int, received_at: datetime.datetime, payload: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_record(raw_id: int, sheet_row_number: int, received_at: datetime.datetime, payload: Dict[str, Any], source_type: str = 'live') -> Dict[str, Any]:
     hash_value = payload_hash(payload)
-    return {
+    result = {
         'raw_id': raw_id,
         'sheet_row_number': sheet_row_number,
         'received_at': received_at,
+        'source_type': source_type,
         'date': _to_timestamptz(_get(payload, ['Date', 'Дата', 'date'])),
         'payment_date': _to_timestamptz(_get(payload, ['Payment date', 'Payment Date', 'Дата платежа', 'payment_date'])),
         'payment_date_orig': _to_timestamptz(_get(payload, ['Payment date (orig)', 'Дата платежа (ориг)', 'payment_date_orig'])),
@@ -124,13 +125,29 @@ def normalize_record(raw_id: int, sheet_row_number: int, received_at: datetime.d
         'payload_hash': hash_value,
         'raw_payload': payload
     }
+    
+    # -------------------
+    # Schema Enforcement
+    # -------------------
+    _rec = result
+    
+    # 1. Financial check
+    if _rec.get('type') in ['Доход', 'Расход', 'Income', 'Expense']:
+        if _rec.get('total_rub') is None:
+            logger.warning(f"⚠️ Validation Warning: ID={raw_id} (row={sheet_row_number}) is '{_rec.get('type')}' but 'Total RUB' is missing/invalid.")
+    
+    # 2. Date check
+    if not _rec.get('date') and not _rec.get('payment_date'):
+         logger.debug(f"ℹ️ Validation Notice: ID={raw_id} (row={sheet_row_number}) has neither Date nor Payment Date.")
 
-async def get_changed_raw_records(limit: Optional[int] = None, batch_size: int = 500) -> List[Dict[str, Any]]:
-    sql = """
+    return result
+
+async def get_changed_raw_records(source: str = 'google_sheets', limit: Optional[int] = None, batch_size: int = 500) -> List[Dict[str, Any]]:
+    sql = f"""
         SELECT r.id as raw_id, r.extracted_at as received_at, r.payload, r.payload_hash
         FROM raw.data r
         LEFT JOIN staging.records s ON r.payload_hash = s.payload_hash
-        WHERE r.source = 'google_sheets' AND s.payload_hash IS NULL
+        WHERE r.source = '{source}' AND s.payload_hash IS NULL
         ORDER BY r.extracted_at, r.id
     """
     if limit is not None: sql += f" LIMIT {limit}"
@@ -160,7 +177,7 @@ async def get_changed_raw_records(limit: Optional[int] = None, batch_size: int =
 async def upsert_staging_records(records: List[Dict[str, Any]]) -> int:
     if not records: return 0
     fields = [
-        'raw_id', 'sheet_row_number', 'received_at', 'date', 'payment_date', 'task', 'type', 'year', 'hours', 'month',
+        'raw_id', 'sheet_row_number', 'received_at', 'source_type', 'date', 'payment_date', 'task', 'type', 'year', 'hours', 'month',
         'client', 'fx_rub', 'fx_usd', 'vendor', 'cashier', 'cat_new', 'quarter', 'service', 'approver', 'category', 'currency', 'cat_final',
         'total_rub', 'total_usd', 'subcat_new', 'paket', 'description', 'subcategory', 'payment_date_orig', 'subcat_final', 'count_vendor',
         'statya', 'sum_total_rub', 'usd_summa', 'direct_indirect', 'package_secondary', 'total_in_currency', 'rub_summa', 'kategoriya',

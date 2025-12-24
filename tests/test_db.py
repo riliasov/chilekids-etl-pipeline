@@ -18,7 +18,7 @@ async def test_connection():
     except asyncio.TimeoutError:
         print("ERROR: Connection timed out after 10 seconds")
     except Exception as e:
-        print(f"ERROR: {e}")
+        pytest.fail(f"Connection failed: {e}")
 
 if __name__ == "__main__":
     asyncio.run(test_connection())
