@@ -37,8 +37,10 @@
 ## Текущие задачи
 - [x] Отказ от Poetry и переход на pip / requirements.txt
 - [x] Исправление и настройка GitHub Actions (CI & ETL workflows)
-- [ ] Оптимизация инкрементальной загрузки данных
-- [ ] Расширение покрытия тестами (особенно для модуля auth и db)
+- [x] Внедрение Alembic для управления схемой БД
+- [x] Переход на архитектуру "Data Fusion" (Unified Staging + SQL Views)
+- [x] Реализация дедупликации и обработки справочников (Dimensions)
+- [ ] Настройка Web App (Supabase + RLS)
 
 ## Стек
 - **Language**: Python 3.11+
@@ -56,15 +58,15 @@ chilekids-etl-pipeline/
 │   ├── config.py       # Управление конфигурацией и env-переменными
 │   ├── db.py           # Асинхронное взаимодействие с базой данных
 │   ├── sheets.py       # Логика работы с Google Sheets API
-│   ├── transform.py    # Очистка, нормализация и подготовка данных
-│   ├── marts.py        # SQL-логика для построения витрин (Data Marts)
+│   ├── transform.py    # Очистка, нормализация и валидация данных
+│   ├── marts.py        # (Legacy) SQL-логика, заменена на SQL Views в БД
 │   └── utils.py        # Вспомогательные утилиты
+├── alembic/            # Миграции базы данных
 ├── tests/              # Модульные и интеграционные тесты
 ├── configs/            # Дополнительные конфигурационные файлы
 ├── .github/workflows/  # CI/CD пайплайны (etl.yml, ci.yml)
 ├── main.py             # Единая точка входа (CLI) приложения
 ├── run.sh              # Скрипт быстрого запуска
-├── fast_push.sh        # Скрипт для быстрого коммита и пуша
 ├── Dockerfile          # Описание Docker-образа
 └── requirements.txt    # Список зависимостей (pip)
 ```
@@ -83,21 +85,25 @@ chilekids-etl-pipeline/
    ```
 
 2. **Настройка переменных (.env):**
-   Скопируйте пример или создайте `.env`:
-   ```ini
-   POSTGRES_URI=postgresql://user:pass@host:port/dbname
-   SUPABASE_URL=...
-   SUPABASE_SERVICE_KEY=...
-   SHEETS_SA_JSON=secrets/service_account.json
+   Скопируйте пример или создайте `.env` (см. выше).
+
+3. **Миграции БД (Первый запуск):**
+   ```bash
+   # Применить структуру таблиц и витрин
+   alembic upgrade head
    ```
 
-3. **Запуск:**
+4. **Запуск ETL:**
    ```bash
-   # Быстрый запуск обертки (активирует venv, ставит зависимости, запускает)
-   ./run.sh run --test
-   
-   # Или вручную
+   # Обычный инкрементальный запуск (Live data)
    python main.py run
+   
+   # Загрузка статического архива (пример)
+   python main.py load <SPREADSHEET_ID> --source archive_2023
+   python main.py run --source archive_2023 --source-type static
+   
+   # Тестовый режим
+   python main.py run --test
    ```
 
 # Разработка
