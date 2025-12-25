@@ -160,7 +160,10 @@ class TestUpsertWithJSONB:
         # The raw_payload should be a JSON string in the arguments
         args = call_args[0]
         # Find raw_payload in args (it's the last argument, position 42)
-        raw_payload_arg = args[-1]
+        # Based on fields definition in src/transform.py, raw_payload is 4th from the end
+        # fields = [..., "payload_hash", "raw_payload", "created_at", "updated_at", "updated_by"]
+        # So it should be at index -4
+        raw_payload_arg = args[-4]
         assert isinstance(raw_payload_arg, str)
         parsed = json.loads(raw_payload_arg)
         assert parsed == {"Date": "16.07.2023", "Client": "Test Client"}

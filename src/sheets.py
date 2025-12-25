@@ -4,6 +4,7 @@ from typing import Any
 
 import aiohttp
 import pandas as pd
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .config import settings
 from .db import get_google_access_token, upload_to_supabase_storage
@@ -11,6 +12,7 @@ from .db import get_google_access_token, upload_to_supabase_storage
 logger = logging.getLogger(__name__)
 
 
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
 async def fetch_google_sheets(spreadsheet_id: str, range_name: str = "Sheet1!A:AF") -> list[dict[str, Any]]:
     token = get_google_access_token()
     url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{range_name}"
