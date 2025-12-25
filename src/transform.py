@@ -7,6 +7,7 @@ from typing import Any
 from dateutil import parser as dateutil_parser
 
 from .db import fetch_one_off, get_db_pool
+from .models import StagingRecord
 from .utils import payload_hash
 
 logger = logging.getLogger(__name__)
@@ -127,7 +128,7 @@ def normalize_record(
     source_type: str = "live",
 ) -> dict[str, Any]:
     hash_value = payload_hash(payload)
-    result = {
+    data = {
         "raw_id": raw_id,
         "sheet_row_number": sheet_row_number,
         "received_at": received_at,
@@ -174,7 +175,6 @@ def normalize_record(
         "total_in_currency": _to_decimal(_get(payload, ["Total in currency", "Сумма в валюте", "total_in_currency"])),
         "rub_summa": _to_decimal(_get(payload, ["rub_summa", "РУБ Сумма"])),
         "usd_summa": _to_decimal(_get(payload, ["usd_summa", "USD Сумма"])),
-        # New Metadata from CDC
         "created_at": _to_timestamptz(_get(payload, ["created_at"])),
         "updated_at": _to_timestamptz(_get(payload, ["updated_at"])),
         "updated_by": _get(payload, ["updated_by"]),
@@ -182,22 +182,17 @@ def normalize_record(
         "raw_payload": payload,
     }
 
-    # -------------------
-    # Schema Enforcement
-    # -------------------
-    _rec = result
+    # Validate with Pydantic
+    validated = StagingRecord(**data)
+    result = validated.model_dump()
 
-    # 1. Financial check
-    if _rec.get("type") in ["Доход", "Расход", "Income", "Expense"]:
-        if _rec.get("total_rub") is None:
+    # Financial check (legacy warning compatibility)
+    if result.get("type") in ["Доход", "Расход", "Income", "Expense"]:
+        if result.get("total_rub") is None:
             logger.warning(
                 f"⚠️ Validation Warning: ID={raw_id} (row={sheet_row_number}) "
-                f"is '{_rec.get('type')}' but 'Total RUB' is missing/invalid."
+                f"is '{result.get('type')}' but 'Total RUB' is missing/invalid."
             )
-
-    # 2. Date check
-    if not _rec.get("date") and not _rec.get("payment_date"):
-        logger.debug(f"ℹ️ Validation Notice: ID={raw_id} (row={sheet_row_number}) has neither Date nor Payment Date.")
 
     return result
 

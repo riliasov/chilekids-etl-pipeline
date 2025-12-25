@@ -18,7 +18,11 @@ def setup_logging(level: str = "INFO", json_format: bool = False) -> None:
     if json_format:
         from pythonjsonlogger.jsonlogger import JsonFormatter
 
-        formatter = JsonFormatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+        # Use standard JSON formatter with timestamp, level, name, and message
+        formatter = JsonFormatter(
+            fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%SZ"
+        )
     else:
         formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
@@ -31,3 +35,5 @@ def setup_logging(level: str = "INFO", json_format: bool = False) -> None:
     logging.getLogger("asyncpg").setLevel(logging.WARNING)
     logging.getLogger("google").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("docker").setLevel(logging.ERROR)
+    logging.getLogger("testcontainers").setLevel(logging.INFO)
