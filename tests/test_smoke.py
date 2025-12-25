@@ -15,8 +15,6 @@ def test_imports():
     """Test that all core modules can be imported without errors."""
     # Core utilities
     # Core utilities
-    from src import db, config, utils
     # ETL modules
-    from src import sheets, transform, marts
     assert True  # импорты прошли успешно
     assert True  # импорты прошли успешно

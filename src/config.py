@@ -1,36 +1,32 @@
 """
 Настройки конфигурации с использованием Pydantic v2.
 """
-from typing import Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Настройки приложения, загружаемые из переменных окружения."""
-    
+
     POSTGRES_URI: str = Field(..., validation_alias="POSTGRES_URI")
-    SUPABASE_URL: Optional[str] = None
-    SUPABASE_SERVICE_KEY: Optional[str] = None
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_KEY: str | None = None
     # Google Sheets configuration
-    SHEETS_API_KEY: Optional[str] = None  # Fallback для публичного доступа
-    SHEETS_SA_JSON: Optional[str] = None  # Путь к JSON сервисного аккаунта
+    SHEETS_API_KEY: str | None = None  # Fallback для публичного доступа
+    SHEETS_SA_JSON: str | None = None  # Путь к JSON сервисного аккаунта
     ARCHIVE_PATH: str = Field(default="./archive")
     LOG_LEVEL: str = Field(default="INFO")
     # Connection pool sizing for asyncpg (small defaults to avoid exhausting hosted DB limits)
     DB_POOL_MIN: int = Field(default=1, validation_alias="DB_POOL_MIN")
     DB_POOL_MAX: int = Field(default=4, validation_alias="DB_POOL_MAX")
-    SHEETS_SPREADSHEET_ID: Optional[str] = None
-    SHEETS_RANGE: Optional[str] = None
+    SHEETS_SPREADSHEET_ID: str | None = None
+    SHEETS_RANGE: str | None = None
     # ELT processing configuration
     BATCH_SIZE: int = Field(default=2000, validation_alias="BATCH_SIZE")
     TEST_LIMIT: int = Field(default=100, validation_alias="TEST_LIMIT")
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 settings = Settings()

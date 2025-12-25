@@ -23,13 +23,9 @@ from src.transform import get_changed_raw_records, normalize_record, upsert_stag
 from src.db import init_db_pool, close_db_pool, fetch
 from src.config import settings
 from src.sheets import fetch_google_sheets
+from src.logger import setup_logging
 
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL),
-    format='%(asctime)s | %(message)s',
-    datefmt='%H:%M:%S'
-)
+
 logger = logging.getLogger(__name__)
 
 # --- Command: RUN ---
@@ -184,7 +180,7 @@ async def run_load_sheets(spreadsheet_id: str, range_name: str, source: str = 'g
             # 1. Try to get explicit ID
             # Normalize keys to find 'id' case-insensitively
             keys_norm = {k.lower().strip(): k for k in r.keys()}
-            id_key = keys_norm.get('id') or keys_norm.get('row_id') or keys_norm.get('uuid')
+            id_key = keys_norm.get('pk') or keys_norm.get('id') or keys_norm.get('row_id') or keys_norm.get('uuid')
             
             raw_id = None
             if id_key and r[id_key]:
@@ -255,7 +251,10 @@ def main():
     parser = argparse.ArgumentParser(
         description="ChileKids ETL Pipeline: raw.source_events → staging.records"
     )
-    subparsers = parser.add_subparsers(dest='command', required=True)
+    parser.add_argument("--debug", action="store_true", help="Set log level to DEBUG")
+    parser.add_argument("--json-logs", action="store_true", help="Enable JSON logging format")
+
+    subparsers = parser.add_subparsers(dest="command", required=True)
     
     # Run command
     p_run = subparsers.add_parser('run', help='Run incremental ELT')
@@ -264,8 +263,8 @@ def main():
         action='store_true',
         help='Test mode: process only first 100 records and show examples'
     )
-    p_run.add_argument('--source', default='google_sheets', help='Raw data source name')
-    p_run.add_argument('--source-type', default='live', help='Target staging source_type tag')
+    p_run.add_argument("--source", default="google_sheets", help="Raw data source name")
+    p_run.add_argument("--source-type", default="live", help="Target staging source_type tag")
     
     # Load command
     p_load = subparsers.add_parser('load', help='Load from Google Sheets')
@@ -277,6 +276,11 @@ def main():
     p_check = subparsers.add_parser('check', help='Check environment')
     
     args = parser.parse_args()
+    
+    # Configure logging based on args
+    log_level = "DEBUG" if getattr(args, 'debug', False) else settings.LOG_LEVEL
+    json_format = getattr(args, 'json_logs', False)
+    setup_logging(level=log_level, json_format=json_format)
     
     try:
         if args.command == 'run':

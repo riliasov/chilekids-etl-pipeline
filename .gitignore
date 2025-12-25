@@ -70,7 +70,7 @@ venv/
 ENV/
 
 # Alembic
-alembic/versions/
+# alembic/versions/ (Миграции должны отслеживаться в git)
 
 # Archive
 archive/

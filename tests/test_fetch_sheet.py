@@ -3,10 +3,12 @@
 
 Usage: python scripts/test_fetch_sheet.py <spreadsheet_id> [range]
 """
-import sys
+
 import asyncio
 import json
 import os
+import sys
+
 from src.sheets import fetch_google_sheets
 
 
@@ -17,7 +19,7 @@ def main():
     spreadsheet_id = sys.argv[1]
     range_name = sys.argv[2] if len(sys.argv) > 2 else "Sheet1!A1:1000"
     # adopt small DB pool defaults in case any downstream code touches the DB
-    os.environ.setdefault('DB_POOL_MAX', '1')
+    os.environ.setdefault("DB_POOL_MAX", "1")
     print("Running fetch_google_sheets for", spreadsheet_id, range_name)
     try:
         records = asyncio.run(fetch_google_sheets(spreadsheet_id, range_name))
@@ -28,5 +30,5 @@ def main():
         print("Extractor error:", type(exc).__name__, exc)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
