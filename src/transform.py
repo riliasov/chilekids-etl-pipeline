@@ -326,13 +326,16 @@ async def upsert_staging_records(records: list[dict[str, Any]]) -> int:
                 await conn.executemany(sql, prepared_records)
                 successful = len(prepared_records)
         except Exception:
+            # Batch failed, fallback to row-by-row
+            logger.warning("Batch insert failed, falling back to row-by-row insert.")
             async with conn.transaction():
                 for values in prepared_records:
                     try:
                         await conn.execute(sql, *values)
                         successful += 1
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        # Log specific error for the record
+                        logger.error(f"Failed to upsert record: {e}")
     return successful
 
 
